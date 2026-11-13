@@ -1,1 +1,220 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Desafio da Tabuada</title>
+  <style>
+    :root { --azul:#2457c5; --azul-escuro:#173b8c; --fundo:#f2f6ff; --texto:#202b3c; --verde:#16834a; --vermelho:#c93636; }
+    * { box-sizing: border-box; }
+    body { margin:0; min-height:100vh; font-family:Arial, Helvetica, sans-serif; color:var(--texto); background:linear-gradient(135deg,#e9f0ff,#f9fbff); display:flex; align-items:center; justify-content:center; padding:20px; }
+    .app { width:min(100%,650px); background:#fff; border-radius:22px; padding:clamp(20px,5vw,36px); box-shadow:0 12px 36px #19376b20; }
+    header { text-align:center; margin-bottom:24px; }
+    .emoji { font-size:42px; }
+    h1 { margin:8px 0; color:var(--azul-escuro); font-size:clamp(26px,5vw,34px); }
+    .sub { margin:0; color:#586579; line-height:1.5; }
+    .stats { display:flex; justify-content:space-between; gap:10px; margin:22px 0 14px; }
+    .stat { flex:1; background:var(--fundo); border-radius:12px; padding:10px; text-align:center; }
+    .stat small { display:block; color:#5d6b80; margin-bottom:4px; }
+    .stat strong { font-size:20px; color:var(--azul-escuro); }
+    .progress-track { height:10px; background:#e7edf8; border-radius:20px; overflow:hidden; margin-bottom:24px; }
+    .progress { height:100%; width:0; background:linear-gradient(90deg,#3978ed,#21a5a0); transition:width .25s; }
+    .screen { text-align:center; }
+    .level-label { font-weight:bold; color:var(--azul); margin-bottom:12px; }
+    .question { background:#f5f8ff; border:2px solid #e1eaff; border-radius:18px; padding:25px 12px; margin:12px 0 20px; }
+    .question small { color:#65738a; font-size:15px; }
+    .equation { font-size:clamp(42px,10vw,58px); font-weight:800; color:var(--azul-escuro); margin:8px 0 0; }
+    .answers { display:grid; grid-template-columns:repeat(2,1fr); gap:12px; }
+    button { font:inherit; cursor:pointer; border:0; border-radius:12px; padding:14px 16px; font-weight:bold; transition:transform .12s, background .12s; }
+    button:focus-visible { outline:3px solid #f4b942; outline-offset:3px; }
+    button:active { transform:scale(.98); }
+    .answer { background:#edf3ff; color:#24457e; font-size:22px; border:2px solid transparent; }
+    .answer:hover:not(:disabled) { background:#dce8ff; border-color:#9bb9f4; }
+    .answer:disabled { cursor:default; opacity:1; }
+    .answer.correct { background:#e4f7ec; color:var(--verde); border-color:#70c894; }
+    .answer.wrong { background:#fff0f0; color:var(--vermelho); border-color:#e99a9a; }
+    .feedback { min-height:30px; margin:16px 0 4px; font-weight:bold; font-size:17px; }
+    .feedback.good { color:var(--verde); } .feedback.bad { color:var(--vermelho); }
+    .primary { background:var(--azul); color:white; width:100%; margin-top:14px; font-size:17px; }
+    .primary:hover { background:var(--azul-escuro); }
+    .levels { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin:20px 0; }
+    .level { background:#edf3ff; color:#24457e; border:2px solid transparent; }
+    .level.selected { background:#e1ebff; border-color:var(--azul); }
+    .hint { color:#647187; font-size:14px; line-height:1.5; }
+    .result-number { font-size:54px; font-weight:800; color:var(--azul); margin:12px 0; }
+    .hidden { display:none; }
+    @media(max-width:420px) { .stats { gap:6px; } .stat { padding:8px 4px; } .stat strong { font-size:18px; } .levels { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header>
+      <div class="emoji" aria-hidden="true">✖️🧠</div>
+      <h1>Desafio da Tabuada</h1>
+      <p class="sub">Aprenda multiplicação brincando. Escolha um nível e responda às 10 questões!</p>
+    </header>
 
+    <section id="startScreen" class="screen">
+      <h2>Escolha seu nível</h2>
+      <div class="levels" role="group" aria-label="Nível de dificuldade">
+        <button class="level selected" data-min="1" data-max="3">Fácil<br><small>Tabuadas 1 a 3</small></button>
+        <button class="level" data-min="4" data-max="6">Médio<br><small>Tabuadas 4 a 6</small></button>
+        <button class="level" data-min="7" data-max="10">Difícil<br><small>Tabuadas 7 a 10</small></button>
+      </div>
+      <p class="hint">Você terá 10 perguntas. Cada acerto vale 10 pontos. Boa sorte!</p>
+      <button id="startBtn" class="primary">Começar jogo</button>
+    </section>
+
+    <section id="gameScreen" class="hidden">
+      <div class="stats">
+        <div class="stat"><small>Questão</small><strong id="questionCount">1/10</strong></div>
+        <div class="stat"><small>Pontos</small><strong id="score">0</strong></div>
+        <div class="stat"><small>Tempo</small><strong id="timer">20s</strong></div>
+      </div>
+      <div class="progress-track" aria-label="Progresso do jogo"><div id="progress" class="progress"></div></div>
+      <div class="screen">
+        <div id="levelName" class="level-label">Nível fácil</div>
+        <div class="question">
+          <small>Quanto é?</small>
+          <div id="equation" class="equation">2 × 3 = ?</div>
+        </div>
+        <div id="answers" class="answers"></div>
+        <div id="feedback" class="feedback" aria-live="polite"></div>
+        <button id="nextBtn" class="primary hidden">Próxima questão</button>
+      </div>
+    </section>
+
+    <section id="resultScreen" class="screen hidden" aria-live="polite">
+      <div class="emoji" aria-hidden="true">🏆</div>
+      <h2>Você terminou o desafio!</h2>
+      <div id="finalScore" class="result-number">0 pontos</div>
+      <p id="resultMessage" class="sub"></p>
+      <p id="resultDetails" class="hint"></p>
+      <button id="restartBtn" class="primary">Jogar novamente</button>
+    </section>
+  </main>
+
+  <script>
+    const startScreen = document.getElementById('startScreen');
+    const gameScreen = document.getElementById('gameScreen');
+    const resultScreen = document.getElementById('resultScreen');
+    const answersEl = document.getElementById('answers');
+    const feedbackEl = document.getElementById('feedback');
+    let minTable = 1, maxTable = 3, questionNumber = 0, score = 0, correctCount = 0;
+    let currentAnswer = 0, timerInterval = null, seconds = 20, locked = false;
+    const totalQuestions = 10;
+    let levelText = 'Fácil';
+
+    document.querySelectorAll('.level').forEach(button => {
+      button.addEventListener('click', () => {
+        document.querySelectorAll('.level').forEach(b => b.classList.remove('selected'));
+        button.classList.add('selected');
+        minTable = Number(button.dataset.min);
+        maxTable = Number(button.dataset.max);
+        levelText = button.textContent.trim().split('\n')[0];
+      });
+    });
+
+    document.getElementById('startBtn').addEventListener('click', startGame);
+    document.getElementById('restartBtn').addEventListener('click', () => {
+      resultScreen.classList.add('hidden');
+      startScreen.classList.remove('hidden');
+    });
+    document.getElementById('nextBtn').addEventListener('click', nextQuestion);
+
+    function randomInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function startGame() {
+      questionNumber = 0; score = 0; correctCount = 0;
+      startScreen.classList.add('hidden');
+      resultScreen.classList.add('hidden');
+      gameScreen.classList.remove('hidden');
+      document.getElementById('levelName').textContent = 'Nível ' + levelText.toLowerCase();
+      nextQuestion();
+    }
+    function nextQuestion() {
+      clearInterval(timerInterval);
+      if (questionNumber >= totalQuestions) { showResults(); return; }
+      questionNumber++;
+      locked = false;
+      seconds = 20;
+      document.getElementById('questionCount').textContent = questionNumber + '/' + totalQuestions;
+      document.getElementById('score').textContent = score;
+      document.getElementById('timer').textContent = seconds + 's';
+      document.getElementById('progress').style.width = ((questionNumber - 1) / totalQuestions * 100) + '%';
+      document.getElementById('nextBtn').classList.add('hidden');
+      feedbackEl.textContent = '';
+      feedbackEl.className = 'feedback';
+
+      const a = randomInt(minTable, maxTable);
+      const b = randomInt(1, 10);
+      currentAnswer = a * b;
+      document.getElementById('equation').textContent = `${a} × ${b} = ?`;
+      const choices = new Set([currentAnswer]);
+      while (choices.size < 4) {
+        let candidate = currentAnswer + randomInt(-10, 10);
+        if (candidate > 0) choices.add(candidate);
+      }
+      const shuffled = [...choices].sort(() => Math.random() - 0.5);
+      answersEl.innerHTML = '';
+      shuffled.forEach(value => {
+        const button = document.createElement('button');
+        button.className = 'answer';
+        button.textContent = value;
+        button.addEventListener('click', () => checkAnswer(value, button));
+        answersEl.appendChild(button);
+      });
+      timerInterval = setInterval(() => {
+        seconds--;
+        document.getElementById('timer').textContent = seconds + 's';
+        if (seconds <= 0) timeUp();
+      }, 1000);
+    }
+    function checkAnswer(value, selectedButton) {
+      if (locked) return;
+      locked = true;
+      clearInterval(timerInterval);
+      const buttons = [...answersEl.querySelectorAll('button')];
+      buttons.forEach(button => {
+        button.disabled = true;
+        if (Number(button.textContent) === currentAnswer) button.classList.add('correct');
+      });
+      if (value === currentAnswer) {
+        score += 10; correctCount++;
+        feedbackEl.textContent = 'Muito bem! Você acertou! 🎉';
+        feedbackEl.classList.add('good');
+      } else {
+        selectedButton.classList.add('wrong');
+        feedbackEl.textContent = `Não foi dessa vez! A resposta correta é ${currentAnswer}.`;
+        feedbackEl.classList.add('bad');
+      }
+      document.getElementById('score').textContent = score;
+      document.getElementById('progress').style.width = (questionNumber / totalQuestions * 100) + '%';
+      document.getElementById('nextBtn').textContent = questionNumber === totalQuestions ? 'Ver resultado' : 'Próxima questão';
+      document.getElementById('nextBtn').classList.remove('hidden');
+    }
+    function timeUp() {
+      if (locked) return;
+      locked = true;
+      clearInterval(timerInterval);
+      [...answersEl.querySelectorAll('button')].forEach(button => {
+        button.disabled = true;
+        if (Number(button.textContent) === currentAnswer) button.classList.add('correct');
+      });
+      feedbackEl.textContent = `O tempo acabou! A resposta correta é ${currentAnswer}.`;
+      feedbackEl.classList.add('bad');
+      document.getElementById('progress').style.width = (questionNumber / totalQuestions * 100) + '%';
+      document.getElementById('nextBtn').textContent = questionNumber === totalQuestions ? 'Ver resultado' : 'Próxima questão';
+      document.getElementById('nextBtn').classList.remove('hidden');
+    }
+    function showResults() {
+      clearInterval(timerInterval);
+      gameScreen.classList.add('hidden');
+      resultScreen.classList.remove('hidden');
+      document.getElementById('finalScore').textContent = score + ' pontos';
+      let message = correctCount >= 8 ? 'Excelente! Você está mandando muito bem na tabuada! 🌟' : correctCount >= 5 ? 'Muito bom! Continue praticando para melhorar ainda mais!' : 'Não desanime! Praticar é o caminho para aprender. Você consegue!';
+      document.getElementById('resultMessage').textContent = message;
+      document.getElementById('resultDetails').textContent = `Você acertou ${correctCount} de ${totalQuestions} questões e errou ${totalQuestions - correctCount}.`;
+    }
+  </script>
+</body>
+</html>
